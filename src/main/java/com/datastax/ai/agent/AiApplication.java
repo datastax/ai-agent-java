@@ -19,6 +19,8 @@ package com.datastax.ai.agent;
 import java.util.Map;
 
 import com.datastax.ai.agent.base.AiAgent;
+import com.datastax.ai.agent.history.AiAgentSession;
+import com.datastax.oss.driver.api.core.CqlSession;
 
 import com.vaadin.flow.component.messages.MessageInput;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -34,6 +36,8 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfiguration;
+import org.springframework.context.annotation.Import;
 
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
 import org.vaadin.firitin.components.messagelist.MarkdownMessage.Color;
@@ -42,6 +46,7 @@ import org.vaadin.firitin.components.messagelist.MarkdownMessage.Color;
 // For native image, compile with ./mvnw -DskipTests -Pnative -Pproduction native:compile
 @Push
 @SpringBootApplication
+@Import({CassandraAutoConfiguration.class})
 public class AiApplication implements AppShellConfigurator {
 
     private static final Logger logger = LoggerFactory.getLogger(AiApplication.class);
@@ -49,7 +54,9 @@ public class AiApplication implements AppShellConfigurator {
     @Route("")
     static class AiChatUI extends VerticalLayout {
 
-        public AiChatUI(AiAgent agent) {
+        public AiChatUI(AiAgent agent, CqlSession cqlSession) {
+            AiAgentSession session = AiAgentSession.create(agent, cqlSession);
+
             var messageList = new VerticalLayout();
             var messageInput = new MessageInput();
 
@@ -60,9 +67,9 @@ public class AiApplication implements AppShellConfigurator {
 
                 messageList.add(userMessage, assistantMessage);
 
-                Prompt prompt = agent.createPrompt(new UserMessage(question), Map.of());
+                Prompt prompt = session.createPrompt(new UserMessage(question), Map.of());
 
-                agent.send(prompt)
+                session.send(prompt)
                         .subscribe((response) -> {
                             if (isValidResponse(response)) {
                                 if (null != response.getResult().getOutput().getContent()) {

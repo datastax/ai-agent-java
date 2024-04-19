@@ -8,6 +8,7 @@ This codebase serves as a starter repository for AI Agents.
 ## Requirements
 - OpenAI API key saved as an environment variable `OPENAI_API_KEY`
 - Java 21 (or beyond)
+- Apache Cassandra running (defaults to localhost, change via application.properties)
 
 ## Running the app
 Run the project using `./mvnw spring-boot:run` and open [http://localhost:8080](http://localhost:8080) in your browser.

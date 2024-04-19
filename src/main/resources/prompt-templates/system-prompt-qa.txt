@@ -5,3 +5,5 @@ Ask questions where answers are unknown or have low confidence.
 Provide the rationale to answers in paid out logical steps.
 Today is {current_date}.
 
+CONVERSATION:
+{conversation}
