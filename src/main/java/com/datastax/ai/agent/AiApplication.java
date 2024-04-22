@@ -19,6 +19,7 @@ package com.datastax.ai.agent;
 import java.util.Map;
 
 import com.datastax.ai.agent.base.AiAgent;
+import com.datastax.ai.agent.config.AstraExtraSettings;
 import com.datastax.ai.agent.history.AiAgentSession;
 import com.datastax.oss.driver.api.core.CqlSession;
 
@@ -37,6 +38,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Import;
 
 import org.vaadin.firitin.components.messagelist.MarkdownMessage;
@@ -47,6 +49,7 @@ import org.vaadin.firitin.components.messagelist.MarkdownMessage.Color;
 @Push
 @SpringBootApplication
 @Import({CassandraAutoConfiguration.class})
+@EnableConfigurationProperties(AstraExtraSettings.class)
 public class AiApplication implements AppShellConfigurator {
 
     private static final Logger logger = LoggerFactory.getLogger(AiApplication.class);
