@@ -22,6 +22,10 @@ import java.util.UUID;
 
 import com.datastax.ai.agent.base.AiAgent;
 import com.datastax.ai.agent.history.AiAgentSession;
+
+import com.datastax.ai.agent.vector.AiAgentVector;
+import com.datastax.oss.driver.api.core.CqlSession;
+
 import com.fasterxml.uuid.Generators;
 
 import com.vaadin.flow.component.messages.MessageInput;
@@ -38,6 +42,7 @@ import org.springframework.ai.chat.memory.CassandraChatMemory;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.vectorstore.CassandraVectorStore;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfiguration;
@@ -57,14 +62,15 @@ public class AiApplication implements AppShellConfigurator {
     private static final Logger logger = LoggerFactory.getLogger(AiApplication.class);
 
     @Bean
-    public AiAgentSession agent(AiAgent baseAgent, CassandraChatMemory chatHistory) {
-        return AiAgentSession.create(baseAgent, chatHistory);
+    public AiAgentVector agent(AiAgent baseAgent, CassandraChatMemory chatHistory, CassandraVectorStore store) {
+        AiAgentSession session = AiAgentSession.create(baseAgent, chatHistory);
+        return AiAgentVector.create(session, store);
     }
 
     @Route("")
     static class AiChatUI extends VerticalLayout {
 
-        public AiChatUI(AiAgentSession agent) {
+        public AiChatUI(AiAgentVector agent) {
             var messageList = new VerticalLayout();
             var messageInput = new MessageInput();
 
