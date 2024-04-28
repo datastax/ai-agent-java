@@ -25,6 +25,7 @@ import com.datastax.ai.agent.history.AiAgentSession;
 
 import com.datastax.ai.agent.llmCache.AiAgentSessionVector;
 import com.datastax.ai.agent.reranking.AiAgentReranker;
+import com.datastax.ai.agent.tavily.AiAgentTavily;
 import com.datastax.ai.agent.vector.AiAgentVector;
 import com.datastax.oss.driver.api.core.CqlSession;
 
@@ -75,7 +76,8 @@ public class AiApplication implements AppShellConfigurator {
         AiAgentSession session = AiAgentSession.create(baseAgent, chatHistory);
         AiAgentReranker reranker = AiAgentReranker.create(session);
         AiAgentVector vector = AiAgentVector.create(reranker, store);
-        return AiAgentSessionVector.create(vector, cqlSession, embeddingModel);
+        AiAgentTavily tavily = AiAgentTavily.create(vector);
+        return AiAgentSessionVector.create(tavily, cqlSession, embeddingModel);
     }
 
     @Route("")
