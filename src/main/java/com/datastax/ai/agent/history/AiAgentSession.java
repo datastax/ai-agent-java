@@ -20,18 +20,22 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import com.datastax.ai.agent.base.AiAgent;
 import com.datastax.oss.driver.api.core.CqlSession;
 
-import org.springframework.ai.chat.history.ChatMemory;
-import org.springframework.ai.chat.history.cassandra.CassandraChatMemory;
+import org.springframework.ai.chat.memory.CassandraChatMemory;
+import org.springframework.ai.chat.memory.CassandraChatMemoryConfig;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.MessageAggregator;
 import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.MessageAggregator;
 import org.springframework.ai.chat.prompt.Prompt;
 
 import reactor.core.publisher.Flux;
@@ -40,8 +44,11 @@ import reactor.core.publisher.Flux;
 public final class AiAgentSession implements AiAgent<Object> {
 
     public static final String SESSION_ID = AiAgentSession.class.getSimpleName() + "_sessionId";
+    public static final String KEYSPACE_NAME = "datastax_ai_agent";
+    public static final String TABLE_NAME = "agent_conversations";
 
     private static final int CHAT_HISTORY_WINDOW_SIZE = 40;
+  	private static final int MAX_CONVERSATION_WORDS = 2000;
 
     private final AiAgent agent;
     private final ChatMemory chatHistory;
@@ -52,7 +59,14 @@ public final class AiAgentSession implements AiAgent<Object> {
 
     AiAgentSession(AiAgent agent, CqlSession cqlSession) {
         this.agent = agent;
-        this.chatHistory = CassandraChatMemory.create(cqlSession);
+
+        CassandraChatMemoryConfig memoryConfig = CassandraChatMemoryConfig.builder()
+                .withCqlSession(cqlSession)
+                .withKeyspaceName(KEYSPACE_NAME)
+                .withTableName(TABLE_NAME)
+                .build();
+
+        this.chatHistory = CassandraChatMemory.create(memoryConfig);
     }
 
     @Override
@@ -63,9 +77,18 @@ public final class AiAgentSession implements AiAgent<Object> {
 
         String sessionId = message.getMetadata().get(SESSION_ID).toString();
         List<Message> history = chatHistory.get(sessionId, CHAT_HISTORY_WINDOW_SIZE);
+        AtomicInteger words = new AtomicInteger();
 
         String conversationStr = history.reversed().stream()
-                .map(msg -> msg.getMessageType().name().toLowerCase() + ": " + msg.getContent())
+                .filter(msg -> {
+                    return MAX_CONVERSATION_WORDS > words.get()
+                            ? 0 < words.getAndAdd(new StringTokenizer(msg.getContent()).countTokens())
+                            : false;
+                })
+                .map(msg -> {
+                    int cutoff = msg.getContent().length() - (words.get() - MAX_CONVERSATION_WORDS);
+                    return msg.getMessageType().name().toLowerCase() + ": " + msg.getContent().substring(0, cutoff);
+                })
                 .collect(Collectors.joining(System.lineSeparator()));
 
         promptProperties = new HashMap<>(promptProperties);
@@ -86,14 +109,15 @@ public final class AiAgentSession implements AiAgent<Object> {
 
         Flux<ChatResponse> responseFlux = agent.send(prompt);
 
-        return MessageAggregator.aggregate(
+        return new MessageAggregator().aggregate(
                 responseFlux,
                 (answer) -> saveQuestionAnswer(question, answer));
     }
 
-    private void saveQuestionAnswer(UserMessage question, Message answer) {
+    private void saveQuestionAnswer(UserMessage question, ChatResponse response) {
         String sessionId = question.getMetadata().get(SESSION_ID).toString();
         Instant instant = (Instant) question.getMetadata().get(CassandraChatMemory.CONVERSATION_TS);
+        AssistantMessage answer = response.getResult().getOutput();
         answer.getMetadata().put(CassandraChatMemory.CONVERSATION_TS, instant);
         List<Message> conversation = List.of(question, answer);
         chatHistory.add(sessionId, conversation);

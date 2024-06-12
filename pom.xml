@@ -53,9 +53,9 @@
 			<version>${spring.ai.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.cassandra</groupId>
-			<artifactId>java-driver-query-builder</artifactId>
-			<version>4.18.0</version>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-cassandra-store</artifactId>
+			<version>${spring.ai.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
